@@ -5,28 +5,20 @@ class Book {
     private String title;
     private String author;
     private boolean checkedOut;
+    private double[] features; // [genreId, lengthPages, rating]
 
-    public Book(String title, String author) {
+    public Book(String title, String author, double[] features) {
         this.title = title;
         this.author = author;
         this.checkedOut = false;
+        this.features = features;
     }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public boolean isCheckedOut() {
-        return checkedOut;
-    }
-
-    public void setCheckedOut(boolean checkedOut) {
-        this.checkedOut = checkedOut;
-    }
+    public String getTitle() { return title; }
+    public String getAuthor() { return author; }
+    public boolean isCheckedOut() { return checkedOut; }
+    public void setCheckedOut(boolean checkedOut) { this.checkedOut = checkedOut; }
+    public double[] getFeatures() { return features; }
 }
 
 class Library {
@@ -37,13 +29,16 @@ class Library {
     }
 
     public void addBook(String title, String author) {
-        Book book = new Book(title, author);
-        books.add(book);
+        double[] defaultFeatures = {0, 100, 3.0}; // default if not specified
+        books.add(new Book(title, author, defaultFeatures));
+    }
+
+    public void addBook(String title, String author, double[] features) {
+        books.add(new Book(title, author, features));
     }
 
     public void searchBook(String keyword) {
         List<Book> searchResults = new ArrayList<>();
-
         for (Book book : books) {
             if (book.getTitle().contains(keyword) || book.getAuthor().contains(keyword)) {
                 searchResults.add(book);
@@ -60,50 +55,22 @@ class Library {
         }
     }
 
-    // public void checkoutBook(String title) {
-    //  for (Book book : books) {
-    //        if (book.getTitle().equals(title)) {
-    //            if (!book.isCheckedOut()) {
-    //                book.setCheckedOut(true);
-    //                System.out.println("Book '" + title + "' checked out successfully.");
-    //            } else {
-    //                System.out.println("Book '" + title + "' is already checked out.");
-    //          
-
-    //    System.out.println("Book '" + title + "' not found in the library.");
-    // } 
-
     public void checkoutBook(String title) {
-    for (Book book : books) {
-        if (book.getTitle().equals(title)) {
-            if (!book.isCheckedOut()) {
-                book.setCheckedOut(true);
-                System.out.println("Book '" + title + "' checked out successfully.");
+        for (Book book : books) {
+            if (book.getTitle().equals(title)) {
+                if (!book.isCheckedOut()) {
+                    book.setCheckedOut(true);
+                    System.out.println("Book '" + title + "' checked out successfully.");
 
-                // Python ML recommendation
-                try {
-                    Process p = Runtime.getRuntime().exec("python recommend.py \"" + title + "\"");
-                    p.waitFor(); // Wait for Python script to finish
+                    recommendBooks(title, 3); // Show top 3 recommendations
 
-                    BufferedReader br = new BufferedReader(new FileReader("recommendations.txt"));
-                    String line;
-                    System.out.println("📚 Recommended books:");
-                    while ((line = br.readLine()) != null) {
-                        System.out.println("- " + line);
-                    }
-                    br.close();
-                } catch (Exception e) {
-                    System.out.println("Error during recommendation: " + e.getMessage());
+                } else {
+                    System.out.println("Book '" + title + "' is already checked out.");
                 }
-
-            } else {
-                System.out.println("Book '" + title + "' is already checked out.");
+                return;
             }
-            return;
         }
-    }
-
-    System.out.println("Book '" + title + "' not found in the library.");
+        System.out.println("Book '" + title + "' not found in the library.");
     }
 
     public void returnBook(String title) {
@@ -118,8 +85,44 @@ class Library {
                 return;
             }
         }
-
         System.out.println("Book '" + title + "' not found in the library.");
+    }
+
+    public void recommendBooks(String title, int k) {
+        Book target = null;
+        for (Book book : books) {
+            if (book.getTitle().equalsIgnoreCase(title)) {
+                target = book;
+                break;
+            }
+        }
+
+        if (target == null) {
+            System.out.println("Book not found for recommendation.");
+            return;
+        }
+
+        PriorityQueue<Book> pq = new PriorityQueue<>(Comparator.comparingDouble(b -> distance(b.getFeatures(), target.getFeatures())));
+
+        for (Book book : books) {
+            if (!book.getTitle().equalsIgnoreCase(title)) {
+                pq.offer(book);
+            }
+        }
+
+        System.out.println("📚 Recommended books similar to '" + title + "':");
+        for (int i = 0; i < k && !pq.isEmpty(); i++) {
+            Book b = pq.poll();
+            System.out.println("- " + b.getTitle() + " by " + b.getAuthor());
+        }
+    }
+
+    private double distance(double[] a, double[] b) {
+        double sum = 0;
+        for (int i = 0; i < a.length; i++) {
+            sum += Math.pow(a[i] - b[i], 2);
+        }
+        return Math.sqrt(sum);
     }
 
     public void saveBooksToFile(String filename) {
@@ -142,7 +145,8 @@ class Library {
                 String title = parts[0];
                 String author = parts[1];
                 boolean checkedOut = Boolean.parseBoolean(parts[2]);
-                Book book = new Book(title, author);
+                double[] defaultFeatures = {0, 100, 3.0}; // Use default
+                Book book = new Book(title, author, defaultFeatures);
                 book.setCheckedOut(checkedOut);
                 books.add(book);
             }
@@ -157,8 +161,15 @@ public class LibraryManagementSystem {
     public static void main(String[] args) {
         Library library = new Library();
 
-        // Loading books from a file (if available)
+        // Load previous data
         library.loadBooksFromFile("library.txt");
+
+        // Add books with features: {genreId, lengthPages, rating}
+        library.addBook("Harry Potter", "J.K. Rowling", new double[]{1, 500, 4.8});
+        library.addBook("Percy Jackson", "Rick Riordan", new double[]{1, 450, 4.5});
+        library.addBook("Sherlock Holmes", "Arthur Conan Doyle", new double[]{2, 300, 4.7});
+        library.addBook("The Hobbit", "J.R.R. Tolkien", new double[]{1, 400, 4.6});
+        library.addBook("The Alchemist", "Paulo Coelho", new double[]{3, 250, 4.3});
 
         Scanner scanner = new Scanner(System.in);
         int choice = -1;
@@ -174,7 +185,7 @@ public class LibraryManagementSystem {
 
             if (scanner.hasNextInt()) {
                 choice = scanner.nextInt();
-                scanner.nextLine(); // Consume newline character
+                scanner.nextLine(); // Consume newline
                 System.out.println();
 
                 switch (choice) {
@@ -183,7 +194,14 @@ public class LibraryManagementSystem {
                         String title = scanner.nextLine();
                         System.out.print("Enter the author of the book: ");
                         String author = scanner.nextLine();
-                        library.addBook(title, author);
+                        System.out.print("Enter genre ID (e.g., 1-Fantasy, 2-Mystery): ");
+                        double genreId = scanner.nextDouble();
+                        System.out.print("Enter page length: ");
+                        double length = scanner.nextDouble();
+                        System.out.print("Enter average rating (e.g., 4.5): ");
+                        double rating = scanner.nextDouble();
+                        scanner.nextLine(); // Consume newline
+                        library.addBook(title, author, new double[]{genreId, length, rating});
                         System.out.println("Book added successfully.\n");
                         break;
                     case 2:
@@ -205,7 +223,6 @@ public class LibraryManagementSystem {
                         System.out.println();
                         break;
                     case 0:
-                        // Saving books to a file
                         library.saveBooksToFile("library.txt");
                         break;
                     default:
@@ -220,4 +237,3 @@ public class LibraryManagementSystem {
         scanner.close();
     }
 }
-
