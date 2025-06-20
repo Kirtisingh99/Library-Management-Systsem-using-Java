@@ -60,20 +60,50 @@ class Library {
         }
     }
 
-    public void checkoutBook(String title) {
-        for (Book book : books) {
-            if (book.getTitle().equals(title)) {
-                if (!book.isCheckedOut()) {
-                    book.setCheckedOut(true);
-                    System.out.println("Book '" + title + "' checked out successfully.");
-                } else {
-                    System.out.println("Book '" + title + "' is already checked out.");
-                }
-                return;
-            }
-        }
+    // public void checkoutBook(String title) {
+    //  for (Book book : books) {
+    //        if (book.getTitle().equals(title)) {
+    //            if (!book.isCheckedOut()) {
+    //                book.setCheckedOut(true);
+    //                System.out.println("Book '" + title + "' checked out successfully.");
+    //            } else {
+    //                System.out.println("Book '" + title + "' is already checked out.");
+    //          
 
-        System.out.println("Book '" + title + "' not found in the library.");
+    //    System.out.println("Book '" + title + "' not found in the library.");
+    // } 
+
+    public void checkoutBook(String title) {
+    for (Book book : books) {
+        if (book.getTitle().equals(title)) {
+            if (!book.isCheckedOut()) {
+                book.setCheckedOut(true);
+                System.out.println("Book '" + title + "' checked out successfully.");
+
+                // Python ML recommendation
+                try {
+                    Process p = Runtime.getRuntime().exec("python recommend.py \"" + title + "\"");
+                    p.waitFor(); // Wait for Python script to finish
+
+                    BufferedReader br = new BufferedReader(new FileReader("recommendations.txt"));
+                    String line;
+                    System.out.println("📚 Recommended books:");
+                    while ((line = br.readLine()) != null) {
+                        System.out.println("- " + line);
+                    }
+                    br.close();
+                } catch (Exception e) {
+                    System.out.println("Error during recommendation: " + e.getMessage());
+                }
+
+            } else {
+                System.out.println("Book '" + title + "' is already checked out.");
+            }
+            return;
+        }
+    }
+
+    System.out.println("Book '" + title + "' not found in the library.");
     }
 
     public void returnBook(String title) {
